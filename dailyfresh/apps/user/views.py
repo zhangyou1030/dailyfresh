@@ -2,11 +2,13 @@ from django.shortcuts import render, redirect
 from django.core.urlresolvers import reverse
 from django.core.mail import send_mail
 from django.views.generic import View
+from django.contrib.auth import authenticate, login
 from django.conf import settings
 from django.http import HttpResponse
 from user.models import User
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 from itsdangerous import SignatureExpired
+from celery_tasks.tasks import send_register_active_email
 import re
 
 # Create your views here.
@@ -129,12 +131,7 @@ class RegisterView(View):
         token = token.decode()
 
         #发送邮件
-        subject = '天天生鲜欢迎页面'
-        message = ''
-        sender = settings.EMAIL_FROM
-        receiver = [email]
-        html_message = '<h1>%s 欢迎注册天天生鲜会员</h1>请点击下面链接进行激活<br><a href=http://127.0.0.1:8000/user/active/%s>http://127.0.0.1:8000/user/active/%s</a>' %(username, token, token)
-        send_mail(subject, message, sender, receiver, html_message=html_message)
+        send_register_active_email.delay(email, username, token)
 
         # 返回应答,跳转到首页
         return redirect(reverse('goods:index'))
@@ -161,6 +158,27 @@ class LoginView(View):
     def get(self, request):
         return render(request, 'login.html')
 
+    def post(self,request):
+        #接收数据
+        username = request.POST.get('username')
+        password = request.POST.get('pwd')
+
+        #校验数据
+        if not all([username, password]):
+            return render(request, 'login.html', {'errmsg': '数据不完整'})
+
+        #业务处理
+        user = authenticate(username=username, password=password)
+        if user is not None:
+            if user.is_active:
+                login(request, user)
+                return redirect(reverse('goods:index'))
+            else:
+                return render(request, 'login.html', {'errmsg': '账户未激活'})
+        else:
+            return render(request, 'login.html', {'errmsg': '用户名或密码错误'})
+
+        #返回应答
 
 
 

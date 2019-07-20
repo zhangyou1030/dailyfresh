@@ -139,6 +139,8 @@ EMAIL_HOST_PASSWORD = 'django1030'
 # 收件人看到的发件人
 EMAIL_FROM = '天天生鲜<django_email_test@163.com>'
 
+AUTHENTICATION_BACKENDS = ['django.contrib.auth.backends.AllowAllUsersModelBackend']
+
 
 
 
